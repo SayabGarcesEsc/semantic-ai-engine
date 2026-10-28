@@ -12,6 +12,12 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "strict": true,
+    
+    /* Crucial flags to fix your TS1259 error */
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+
+    /* Optional: If you prefer to allow unused imports while debugging, change these to false */
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noImplicitReturns": true
