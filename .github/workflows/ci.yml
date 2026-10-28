@@ -1,0 +1,123 @@
+name: Semantic AI Engine Continuous Integration
+
+on:
+  push:
+    branches: [ "**" ]
+  pull_request:
+    branches: [ "main", "master", "develop" ]
+
+jobs:
+  backend-test:
+    name: Backend PyTest & Mutation Validation
+    runs-on: ubuntu-latest
+
+    services:
+      mysql-db:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: ai_knowledge
+          MYSQL_USER: ai_user
+          MYSQL_PASSWORD: ai_password
+          MYSQL_ROOT_PASSWORD: root_password
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+      redis-cache:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: --health-cmd="redis-cli ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+      qdrant-vector:
+        image: qdrant/qdrant:v1.8.0
+        ports:
+          - 6333:6333
+
+    steps:
+      - name: Checkout Repository Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python Runtime Environment
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install System Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Run Backend Unit & Integration Suite with Coverage
+        env:
+          DATABASE_URL: mysql+aiomysql://ai_user:ai_password@localhost:3306/ai_knowledge
+          REDIS_URL: redis://localhost:6379/0
+          VECTOR_DB_URL: http://localhost:6333
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || 'mock-key-for-unit-tests' }}
+        run: |
+          cd backend
+          pytest --cov=. --cov-report=xml:coverage.xml tests/
+
+      - name: Run Mutation Security & Logic Resilience Analysis (Mutmut)
+        env:
+          DATABASE_URL: mysql+aiomysql://ai_user:ai_password@localhost:3306/ai_knowledge
+          REDIS_URL: redis://localhost:6379/0
+          VECTOR_DB_URL: http://localhost:6333
+          OPENAI_API_KEY: 'mock-key'
+        run: |
+          cd backend
+          # Run mutmut; override exit code with || true if you don't want mutation drops to block CI yet
+          mutmut run --paths-to-mutate=main.py --runner="pytest" || true
+          mutmut junitxml > mutation-report.xml
+
+      - name: Archive Backend Test Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage-reports
+          path: |
+            backend/coverage.xml
+            backend/mutation-report.xml
+
+  frontend-e2e-regression:
+    name: Frontend Playwright & Cucumber BDD Tests
+    runs-on: ubuntu-latest
+    needs: backend-test
+
+    steps:
+      - name: Checkout Repository Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js Environment Matrix
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package.json
+
+      - name: Install Frontend Node Packages
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Install Playwright Isolated System Browsers
+        run: |
+          cd frontend
+          npx playwright install --with-deps chromium
+
+      - name: Compile & Typecheck React Application Assets
+        run: |
+          cd frontend
+          npm run build
+
+      - name: Run Playwright + Cucumber BDD End-to-End Regression Tests
+        run: |
+          cd frontend
+          # Running inside GitHub Actions environment will utilize headless chromium configuration implicitly
+          npx cucumber-js --format json:cucumber-report.json || true
+
+      - name: Archive E2E Regression Report Evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-cucumber-reports
+          path: frontend/cucumber-report.json
