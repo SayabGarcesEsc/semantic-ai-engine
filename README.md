@@ -4,6 +4,37 @@ An enterprise-grade, full-stack RAG (Retrieval-Augmented Generation) application
 
 ---
 
+## 🏗️ Architecture & Component Mapping
+
+```text
+┌────────────────────────────────────────────────────────────────────────┐
+ │                      REACT + TYPESCRIPT UI FRONTEND                    │
+ │  • Chat Interface (Streaming responses)  • Document Management Dashboard│
+ └────────────────────────────────────────────────────────────────────────┘
+                                     │ (HTTP / SSE / WebSockets)
+                                     ▼
+ ┌────────────────────────────────────────────────────────────────────────┐
+ │                        FASTAPI BACKEND ENGINE                          │
+ │  • Async Routers   • Pydantic Schemas   • Depends() Dependency Injection│
+ └────────────────────────────────────────────────────────────────────────┘
+         │                           │                           │
+         ▼                           ▼                           ▼
+ ┌───────────────┐           ┌───────────────┐           ┌───────────────┐
+ │ REDIS CACHE   │           │ MYSQL RDBMS   │           │ VECTOR DB     │
+ │ • Chat Hist.  │           │ • User Auth   │           │ • Embeddings  │
+ │ • LLM Caching │           │ • Metadata    │           │ • Document    │
+ │ • Rate Limit  │           │ • Audit Logs  │           │   Vectors     │
+ └───────────────┘           └───────────────┘           └───────────────┘
+                                     ▲                           ▲
+                                     │ (Inspections & SQL)       │ (Semantic Query)
+                             ┌───────────────┐                   │
+                             │ DBEAVER WORK. │ ──────────────────┘
+                             └───────────────┘
+ ┌────────────────────────────────────────────────────────────────────────┐
+ │                           DOCKER ECOSYSTEM                             │
+ │ • Containerized services  • Isolated Networks  • Shared Vol. Storage   │
+ └────────────────────────────────────────────────────────────────────────┘
+```
 ## 🚀 Key Features
 
 - **Asynchronous RAG Pipeline:** Ingests unformatted text records, creates high-density vectorized representations using OpenAI models (`text-embedding-3-small`), and saves them into Qdrant.
