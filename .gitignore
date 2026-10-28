@@ -1,0 +1,23 @@
+# Python patterns
+backend/venv/
+backend/__pycache__/
+backend/.pytest_cache/
+backend/.coverage
+backend/coverage.xml
+backend/mutation-report.xml
+.mutmut-cache
+
+# Node/React patterns
+frontend/node_modules/
+frontend/dist/
+frontend/coverage/
+frontend/.playwright/
+frontend/cucumber-report.json
+
+# Environment variables & secrets (CRITICAL)
+.env
+backend/.env
+
+# OS files
+.DS_Store
+Thumbs.db
